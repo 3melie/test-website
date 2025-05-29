@@ -1,60 +1,65 @@
-let audio;
-let amp;
-let fft;
-
-function preload() {
-  // audio = loadSound("doorbell.mp3");
-}
+let mic, fft;
+let threshold = 0.1; // Lautstärkeschwelle
+let lasers = [];
 
 function setup() {
-  createCanvas(400, 400);
-
-  getAudioContext().suspend();
-  userStartAudio();
-
-  audio = new p5.AudioIn();
-  audio.start();
-
-  amp = new p5.Amplitude();
-  amp.setInput(audio);
+  createCanvas(windowWidth, windowHeight);
+  mic = new p5.AudioIn();
+  mic.start();
 
   fft = new p5.FFT();
-  fft.setInput(audio);
+  fft.setInput(mic);
+
+  background(0);
 }
 
 function draw() {
-  background("black");
-
-  
-
-  fill("white")
-  const level = amp.getLevel() * 8000;
-  //console.log (level);
-  circle(width/2, height/2, level, level); 
+  background(0, 20); // leicht transparent, um Spuren zu erzeugen
 
   let spectrum = fft.analyze();
-  noStroke();
-  fill(255, 0, 255);
-  for (let i = 0; i < spectrum.length; i++){
-    let x = map(i, 0, spectrum.length, 0, width);
-    let h = -height + map(spectrum[i], 0, 255, height, 0);
-    rect(x*60, height, width / spectrum.length * 60, h )
+  let vol = mic.getLevel();
+
+  if (vol > threshold) {
+    let freqIndex = findDominantFreqIndex(spectrum);
+    let freq = freqIndexToFreq(freqIndex);
+    let angle = map(freqIndex, 0, spectrum.length, 0, TWO_PI);
+    let len = map(vol, 0, 1, 50, 400);
+    
+    let x = random(width);
+    let y = random(height);
+    let dir = p5.Vector.fromAngle(angle).mult(len);
+
+    lasers.push({
+      x: x,
+      y: y,
+      dx: dir.x,
+      dy: dir.y,
+      col: color(map(freq, 100, 10000, 0, 360), 100, 100)
+    });
   }
 
-  fft.analyze(1024)
-  let waveform = fft.waveform();
-  noFill();
-  beginShape();
-  stroke(255, 0, 0);
-  for (let i = 0; i < waveform.length; i++){
-    let x = map(i, 0, waveform.length, 0, width);
-    let y = map( waveform[i], -1, 1, 0, height);
-    vertex(x,y);
+  // Zeichne alle Laser
+  colorMode(HSB, 360, 100, 100, 100);
+  for (let l of lasers) {
+    stroke(l.col);
+    strokeWeight(2);
+    line(l.x, l.y, l.x + l.dx, l.y + l.dy);
   }
-  endShape();
- 
 }
 
-function keyReleased(){
-  //audio.play();
+function findDominantFreqIndex(spectrum) {
+  let maxAmp = 0;
+  let index = 0;
+  for (let i = 0; i < spectrum.length; i++) {
+    if (spectrum[i] > maxAmp) {
+      maxAmp = spectrum[i];
+      index = i;
+    }
+  }
+  return index;
+}
+
+function freqIndexToFreq(index) {
+  let nyquist = sampleRate() / 2;
+  return index * (nyquist / spectrum.length);
 }
