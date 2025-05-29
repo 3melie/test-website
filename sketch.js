@@ -63,7 +63,7 @@ function findDominantFreqIndex(spectrum) {
   }
   return index;
 }
-
+ 
 function indexToFreq(index, bins) {
   let nyquist = sampleRate() / 2;
   return index * (nyquist / bins);
